@@ -251,7 +251,8 @@ with tab_busca:
                     "voos": voos_result,
                     "hoteis": hoteis_result,
                     "noites": noites,
-                    "destino": extrair_cidade(destino)
+                    "destino": extrair_cidade(destino),
+                    "num_pessoas": num_pessoas
                 }
 
     if "resultados_busca" in st.session_state:
@@ -259,6 +260,7 @@ with tab_busca:
         voos = res["voos"]
         hoteis = res["hoteis"]
         noites = res["noites"]
+        num_pessoas_busca = res["num_pessoas"]
         
         st.divider()
         st.subheader(f"opções para {res['destino']}")
@@ -266,7 +268,7 @@ with tab_busca:
         col_res_v, col_res_h = st.columns(2)
         
         with col_res_v:
-            st.write("### ✈️ passagens aéreas")
+            st.write(f"### ✈️ passagens aéreas (preço por pessoa)")
             if "erro" in voos:
                 st.error(voos["erro"])
                 voos_lista = []
@@ -278,7 +280,7 @@ with tab_busca:
                         st.write(f"**r$ {v['preco']:.2f}**")
 
         with col_res_h:
-            st.write(f"### 🏨 hospedagem (mínimo ⭐ {nota_minima if 'nota_minima' in locals() else 'selecionado'})")
+            st.write(f"### 🏨 hospedagem (diária para {num_pessoas_busca} pessoas)")
             if "erro" in hoteis:
                 st.error(hoteis["erro"])
                 hoteis_lista = []
@@ -296,7 +298,7 @@ with tab_busca:
             st.write("### 🛒 monte seu pacote")
             
             def format_voo(v):
-                return f"{v['companhia']} ({v['voo']}) - r$ {v['preco']:.2f}"
+                return f"{v['companhia']} ({v['voo']}) - r$ {v['preco']:.2f} por pessoa"
                 
             def format_hotel(h):
                 return f"{h['nome']} (⭐ {h['avaliacao']}) - r$ {h['preco']:.2f} / noite"
@@ -308,9 +310,9 @@ with tab_busca:
                 hotel_escolhido = st.radio("escolha o hotel:", hoteis_lista, format_func=format_hotel)
                 
             if voo_escolhido and hotel_escolhido:
-                total_voo = voo_escolhido['preco']
+                total_voo = voo_escolhido['preco'] * num_pessoas_busca
                 total_hotel = hotel_escolhido['preco'] * noites
                 total_pacote = total_voo + total_hotel
                 
-                st.success(f"**resumo do pacote:** voo (r$ {total_voo:.2f}) + hotel ({noites} noites = r$ {total_hotel:.2f})")
+                st.success(f"**resumo:** voos ({num_pessoas_busca}x r$ {voo_escolhido['preco']:.2f} = **r$ {total_voo:.2f}**) + hotel ({noites} noites = **r$ {total_hotel:.2f}**)")
                 st.info(f"### 💰 valor total estimado: r$ {total_pacote:.2f}")
