@@ -147,7 +147,7 @@ def buscar_hoteis(destino_hotel: str, checkin: str, checkout: str, min_nota: flo
 
 instrucoes = "você é uma especialista em viagens, se chama clau e atua na agência clau a viajante. apresente-se apenas uma vez. use as informações do perfil do usuário para criar roteiros personalizados. converse de forma natural."
 # Tente usar o 1.5-flash que é o mais compatível com diferentes regiões do Streamlit Cloud
-model_name = "gemini-2.0-flash" 
+model_name = "gemini-2.5-pro" 
 model = genai.GenerativeModel(model_name=model_name, system_instruction=instrucoes, tools=[buscar_voos, buscar_hoteis])
 
 st.set_page_config(layout="wide", page_title="clau a viajante")
@@ -340,6 +340,6 @@ with tab_aeroportos:
         if buscar_aero and cidade_alvo:
             with st.spinner("consultando a ia..."):
                 prompt_aero = f"quais os 3 aeroportos comerciais mais próximos de {cidade_alvo}? retorne apenas o nome do aeroporto, a distância aproximada e a sigla iata entre parênteses. seja direto e não enrole."
-                modelo_aero = genai.GenerativeModel("gemini-2.0-flash")
+                modelo_aero = genai.GenerativeModel("gemini-2.5-pro")
                 resp_aero = modelo_aero.generate_content(prompt_aero)
                 st.write(resp_aero.text)
