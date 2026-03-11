@@ -260,7 +260,7 @@ with tab_busca:
         voos = res["voos"]
         hoteis = res["hoteis"]
         noites = res["noites"]
-        num_pessoas_busca = res["num_pessoas"]
+        num_pessoas_busca = res.get("num_pessoas", 1)
         
         st.divider()
         st.subheader(f"opções para {res['destino']}")
