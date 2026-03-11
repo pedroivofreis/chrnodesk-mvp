@@ -153,6 +153,12 @@ lista_locais = carregar_locais()
 tab_chat, tab_busca, tab_aeroportos = st.tabs(["💬 chat e roteiro", "🔍 buscador completo", "📍 descobrir aeroportos"])
 
 with tab_chat:
+    col_vazia, col_btn = st.columns([4, 1])
+    with col_btn:
+        if st.button("🧹 limpar chat"):
+            st.session_state.chat = model.start_chat(enable_automatic_function_calling=True)
+            st.rerun()
+
     with st.expander("📝 perfil da viagem (preencha para guiar a clau)", expanded=True):
         with st.form("form_perfil"):
             col_a, col_b = st.columns(2)
@@ -277,7 +283,7 @@ with tab_busca:
                 for v in voos_lista:
                     with st.container(border=True):
                         st.write(f"**{v['companhia']}** | voo: {v['voo']} | paradas: {v['paradas']}")
-                        st.write(f"**r$ {v['preco']:.2f}**")
+                        st.write(f"r$ **{v['preco']:.2f}**")
 
         with col_res_h:
             st.write(f"### 🏨 hospedagem (diária para {num_pessoas_busca} pessoas)")
@@ -291,7 +297,7 @@ with tab_busca:
                         if h['imagem']:
                             st.image(h['imagem'], use_container_width=True)
                         st.write(f"**{h['nome']}** | ⭐ {h['avaliacao']}")
-                        st.write(f"**r$ {h['preco']:.2f} / noite**")
+                        st.write(f"r$ **{h['preco']:.2f}** / noite")
                         
         if voos_lista and hoteis_lista:
             st.divider()
@@ -316,8 +322,8 @@ with tab_busca:
                 total_pacote = total_voo + total_hotel
                 preco_medio_pessoa = total_pacote / qtd_pessoas_pacote
                 
-                st.success(f"**resumo:** voos ({qtd_pessoas_pacote}x r$ {voo_escolhido['preco']:.2f} = **r$ {total_voo:.2f}**) + hotel ({noites} noites = **r$ {total_hotel:.2f}**)")
-                st.info(f"### 💰 valor total estimado: r$ {total_pacote:.2f} (**r$ {preco_medio_pessoa:.2f}** por pessoa)")
+                st.success(f"**resumo:** voos ({qtd_pessoas_pacote}x r$ {voo_escolhido['preco']:.2f} = r$ **{total_voo:.2f}**) + hotel ({noites} noites = r$ **{total_hotel:.2f}**)")
+                st.info(f"### 💰 valor total estimado: r$ **{total_pacote:.2f}** (r$ **{preco_medio_pessoa:.2f}** por pessoa)")
 
 with tab_aeroportos:
     st.subheader("descobrir aeroporto mais próximo")
