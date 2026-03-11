@@ -6,8 +6,8 @@ import re
 import datetime
 import airportsdata
 
-genai.configure(api_key="aizasyaxzclcdxqm3anicjhti1noapx9wuxf_wq")
-chave_serpapi = "b41730118919c099c830c0a8291165e572b9fcabb042fc3626ad7359666cb9be"
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+chave_serpapi = st.secrets["SERPAPI_API_KEY"]
 
 @st.cache_data
 def carregar_locais():
@@ -42,7 +42,7 @@ def limpar_preco(valor):
     except:
         return 0.0
 
-def buscar_voos(origem: str, destino: str, data_ida: str, data_volta: str = "", tipo: str = "ida e volta", flex: str = "exata"):
+def buscar_voos(origem: str, destino: str, data_ida: str, data_volta: str = "", tipo: str = "ida e volta", flex: str = "exata", pessoas: int = 1):
     origem_iata = extrair_iata(origem)
     destino_iata = extrair_iata(destino)
     url = "https://serpapi.com/search"
@@ -51,6 +51,7 @@ def buscar_voos(origem: str, destino: str, data_ida: str, data_volta: str = "", 
         "departure_id": origem_iata,
         "arrival_id": destino_iata,
         "outbound_date": data_ida,
+        "adults": pessoas,
         "hl": "pt-br",
         "currency": "BRL",
         "api_key": chave_serpapi
@@ -90,7 +91,7 @@ def buscar_voos(origem: str, destino: str, data_ida: str, data_volta: str = "", 
     except Exception as e:
         return json.dumps({"erro": f"falha na comunicação: {str(e)}"})
 
-def buscar_hoteis(destino: str, bairro: str, checkin: str, checkout: str, min_nota: float):
+def buscar_hoteis(destino: str, bairro: str, checkin: str, checkout: str, min_nota: float, pessoas: int = 1):
     cidade = extrair_cidade(destino)
     query = f"hoteis em {cidade} {bairro}".strip()
     url = "https://serpapi.com/search"
@@ -99,6 +100,7 @@ def buscar_hoteis(destino: str, bairro: str, checkin: str, checkout: str, min_no
         "q": query,
         "check_in_date": checkin,
         "check_out_date": checkout,
+        "adults": pessoas,
         "hl": "pt-br",
         "currency": "BRL",
         "api_key": chave_serpapi
@@ -165,6 +167,7 @@ with tab_chat:
                 with col_volta_chat:
                     volta_chat = st.date_input("data de volta", value=None)
             with col_b:
+                num_pessoas_chat = st.number_input("quantidade de pessoas", min_value=1, value=2)
                 estilo_viagem = st.selectbox("estilo da viagem", ["romântica", "mochilão", "em família", "luxo", "aventura"])
                 orcamento = st.selectbox("orçamento", ["econômico", "conforto", "sem limites"])
                 clima_preferido = st.text_input("preferências (clima, atrações, bairros)")
@@ -174,7 +177,7 @@ with tab_chat:
             if submit_perfil:
                 if "chat" not in st.session_state:
                     st.session_state.chat = model.start_chat(enable_automatic_function_calling=True)
-                resumo_perfil = f"olá clau. saio de {origem_chat} para {destino_chat}. ida: {ida_chat}, volta: {volta_chat}. estilo: {estilo_viagem}. orçamento: {orcamento}. preferências: {clima_preferido}. sugira um roteiro."
+                resumo_perfil = f"olá clau. saio de {origem_chat} para {destino_chat} com {num_pessoas_chat} pessoa(s). ida: {ida_chat}, volta: {volta_chat}. estilo: {estilo_viagem}. orçamento: {orcamento}. preferências: {clima_preferido}. sugira um roteiro."
                 st.session_state.chat.send_message(resumo_perfil)
                 st.success("perfil enviado!")
 
@@ -199,11 +202,13 @@ with tab_busca:
     st.subheader("pesquisa unificada: voos e hotéis")
 
     with st.form("form_busca_completa"):
-        col_tipo, col_flex = st.columns(2)
+        col_tipo, col_flex, col_pessoas = st.columns(3)
         with col_tipo:
             tipo_voo = st.radio("tipo de voo", ["ida e volta", "somente ida"], horizontal=True)
         with col_flex:
             flexibilidade = st.selectbox("flexibilidade de datas", ["exata", "+/- 1 dia", "+/- 3 dias"])
+        with col_pessoas:
+            num_pessoas = st.number_input("quantidade de pessoas", min_value=1, value=2)
 
         hoje = datetime.date.today()
         padrao_ida = hoje + datetime.timedelta(days=30)
@@ -231,7 +236,7 @@ with tab_busca:
                 
                 noites = max(1, (volta - ida).days) if tipo_voo == "ida e volta" else 1
 
-                dados_voos_json = buscar_voos(origem, destino, formato_ida, formato_volta, tipo_voo, flexibilidade)
+                dados_voos_json = buscar_voos(origem, destino, formato_ida, formato_volta, tipo_voo, flexibilidade, num_pessoas)
                 voos_result = json.loads(dados_voos_json)
 
                 if tipo_voo == "ida e volta":
@@ -239,7 +244,7 @@ with tab_busca:
                 else:
                     checkout_hotel = (ida + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
-                dados_hoteis_json = buscar_hoteis(destino, bairro_pref, formato_ida, checkout_hotel, nota_minima)
+                dados_hoteis_json = buscar_hoteis(destino, bairro_pref, formato_ida, checkout_hotel, nota_minima, num_pessoas)
                 hoteis_result = json.loads(dados_hoteis_json)
                 
                 st.session_state.resultados_busca = {
