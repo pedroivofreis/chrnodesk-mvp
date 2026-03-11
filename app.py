@@ -143,7 +143,7 @@ def buscar_hoteis(destino_hotel: str, checkin: str, checkout: str, min_nota: flo
         return json.dumps({"erro": f"falha: {str(e)}"})
 
 instrucoes = "você é uma especialista em viagens, se chama clau e atua na agência clau a viajante. apresente-se apenas uma vez. use as informações do perfil do usuário para criar roteiros personalizados. converse de forma natural."
-model = genai.GenerativeModel(model_name="gemini-2.0-flash", system_instruction=instrucoes, tools=[buscar_voos, buscar_hoteis])
+model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=instrucoes, tools=[buscar_voos, buscar_hoteis])
 
 st.set_page_config(layout="wide", page_title="clau a viajante")
 st.title("✈️ clau a viajante - planejamento de roteiros")
@@ -330,6 +330,6 @@ with tab_aeroportos:
         if buscar_aero and cidade_alvo:
             with st.spinner("consultando a ia..."):
                 prompt_aero = f"quais os 3 aeroportos comerciais mais próximos de {cidade_alvo}? retorne apenas o nome do aeroporto, a distância aproximada e a sigla iata entre parênteses. seja direto e não enrole."
-                modelo_aero = genai.GenerativeModel("gemini-2.0-flash")
+                modelo_aero = genai.GenerativeModel("gemini-1.5-flash")
                 resp_aero = modelo_aero.generate_content(prompt_aero)
                 st.write(resp_aero.text)
