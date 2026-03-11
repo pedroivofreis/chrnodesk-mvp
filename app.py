@@ -91,13 +91,11 @@ def buscar_voos(origem: str, destino: str, data_ida: str, data_volta: str = "", 
     except Exception as e:
         return json.dumps({"erro": f"falha na comunicação: {str(e)}"})
 
-def buscar_hoteis(destino: str, bairro: str, checkin: str, checkout: str, min_nota: float, pessoas: int = 1):
-    cidade = extrair_cidade(destino)
-    query = f"hoteis em {cidade} {bairro}".strip()
+def buscar_hoteis(destino_hotel: str, checkin: str, checkout: str, min_nota: float, pessoas: int = 1):
     url = "https://serpapi.com/search"
     params = {
         "engine": "google_hotels",
-        "q": query,
+        "q": f"hoteis em {destino_hotel}",
         "check_in_date": checkin,
         "check_out_date": checkout,
         "adults": pessoas,
@@ -152,7 +150,7 @@ st.title("✈️ clau a viajante - planejamento de roteiros")
 
 lista_locais = carregar_locais()
 
-tab_chat, tab_busca = st.tabs(["💬 chat e roteiro", "🔍 buscador completo"])
+tab_chat, tab_busca, tab_aeroportos = st.tabs(["💬 chat e roteiro", "🔍 buscador completo", "📍 descobrir aeroportos"])
 
 with tab_chat:
     with st.expander("📝 perfil da viagem (preencha para guiar a clau)", expanded=True):
@@ -208,18 +206,18 @@ with tab_busca:
         with col_flex:
             flexibilidade = st.selectbox("flexibilidade de datas", ["exata", "+/- 1 dia", "+/- 3 dias"])
         with col_pessoas:
-            num_pessoas = st.number_input("quantidade de pessoas", min_value=1, value=2)
+            num_pessoas = st.number_input("quantidade de pessoas para a busca", min_value=1, value=2)
 
         hoje = datetime.date.today()
         padrao_ida = hoje + datetime.timedelta(days=30)
 
         col1, col2 = st.columns(2)
         with col1:
-            origem = st.selectbox("origem (cidade ou aeroporto)", lista_locais, index=None)
+            origem = st.selectbox("origem do voo (cidade ou aeroporto)", lista_locais, index=None)
             ida = st.date_input("data de ida", min_value=hoje, value=padrao_ida)
-            bairro_pref = st.text_input("bairro, cidade ou ponto turístico para o hotel?")
+            bairro_pref = st.text_input("cidade específica ou bairro para o hotel (se diferente do voo)")
         with col2:
-            destino = st.selectbox("destino (cidade ou aeroporto)", lista_locais, index=None)
+            destino = st.selectbox("destino do voo (cidade ou aeroporto)", lista_locais, index=None)
             padrao_volta = ida + datetime.timedelta(days=7)
             volta = st.date_input("data de volta", min_value=ida, value=padrao_volta)
             nota_minima = st.slider("nota mínima do hotel (0 a 5)", 0.0, 5.0, 4.0, 0.5)
@@ -228,7 +226,7 @@ with tab_busca:
 
     if buscar:
         if not origem or not destino:
-            st.warning("selecione a origem e o destino.")
+            st.warning("selecione a origem e o destino do voo.")
         else:
             with st.spinner("buscando voos e hotéis..."):
                 formato_ida = ida.strftime("%Y-%m-%d")
@@ -244,14 +242,16 @@ with tab_busca:
                 else:
                     checkout_hotel = (ida + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
-                dados_hoteis_json = buscar_hoteis(destino, bairro_pref, formato_ida, checkout_hotel, nota_minima, num_pessoas)
+                cidade_hotel_final = bairro_pref if bairro_pref else extrair_cidade(destino)
+
+                dados_hoteis_json = buscar_hoteis(cidade_hotel_final, formato_ida, checkout_hotel, nota_minima, num_pessoas)
                 hoteis_result = json.loads(dados_hoteis_json)
                 
                 st.session_state.resultados_busca = {
                     "voos": voos_result,
                     "hoteis": hoteis_result,
                     "noites": noites,
-                    "destino": extrair_cidade(destino),
+                    "destino": cidade_hotel_final,
                     "num_pessoas": num_pessoas
                 }
 
@@ -263,7 +263,7 @@ with tab_busca:
         num_pessoas_busca = res.get("num_pessoas", 1)
         
         st.divider()
-        st.subheader(f"opções para {res['destino']}")
+        st.subheader(f"opções encontradas para {res['destino']}")
         
         col_res_v, col_res_h = st.columns(2)
         
@@ -306,13 +306,30 @@ with tab_busca:
             sel_v, sel_h = st.columns(2)
             with sel_v:
                 voo_escolhido = st.radio("escolha o voo:", voos_lista, format_func=format_voo)
+                qtd_pessoas_pacote = st.number_input("ajustar quantidade de passagens aéreas", min_value=1, value=num_pessoas_busca)
             with sel_h:
                 hotel_escolhido = st.radio("escolha o hotel:", hoteis_lista, format_func=format_hotel)
                 
             if voo_escolhido and hotel_escolhido:
-                total_voo = voo_escolhido['preco'] * num_pessoas_busca
+                total_voo = voo_escolhido['preco'] * qtd_pessoas_pacote
                 total_hotel = hotel_escolhido['preco'] * noites
                 total_pacote = total_voo + total_hotel
+                preco_medio_pessoa = total_pacote / qtd_pessoas_pacote
                 
-                st.success(f"**resumo:** voos ({num_pessoas_busca}x r$ {voo_escolhido['preco']:.2f} = **r$ {total_voo:.2f}**) + hotel ({noites} noites = **r$ {total_hotel:.2f}**)")
-                st.info(f"### 💰 valor total estimado: r$ {total_pacote:.2f}")
+                st.success(f"**resumo:** voos ({qtd_pessoas_pacote}x r$ {voo_escolhido['preco']:.2f} = **r$ {total_voo:.2f}**) + hotel ({noites} noites = **r$ {total_hotel:.2f}**)")
+                st.info(f"### 💰 valor total estimado: r$ {total_pacote:.2f} (**r$ {preco_medio_pessoa:.2f}** por pessoa)")
+
+with tab_aeroportos:
+    st.subheader("descobrir aeroporto mais próximo")
+    st.write("quer ir para uma cidade que não tem aeroporto? pergunte para a ia qual é a melhor rota.")
+    
+    with st.form("form_aeroporto_proximo"):
+        cidade_alvo = st.text_input("digite o nome da cidade (ex: gramado, búzios, canela)")
+        buscar_aero = st.form_submit_button("buscar aeroportos")
+        
+        if buscar_aero and cidade_alvo:
+            with st.spinner("consultando a ia..."):
+                prompt_aero = f"quais os 3 aeroportos comerciais mais próximos de {cidade_alvo}? retorne apenas o nome do aeroporto, a distância aproximada e a sigla iata entre parênteses. seja direto e não enrole."
+                modelo_aero = genai.GenerativeModel("gemini-2.5-flash")
+                resp_aero = modelo_aero.generate_content(prompt_aero)
+                st.write(resp_aero.text)
