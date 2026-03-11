@@ -6,7 +6,10 @@ import re
 import datetime
 import airportsdata
 
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+except Exception as e:
+    st.error(f"Erro na configuração da API: {e}")
 chave_serpapi = st.secrets["SERPAPI_API_KEY"]
 
 @st.cache_data
@@ -143,7 +146,9 @@ def buscar_hoteis(destino_hotel: str, checkin: str, checkout: str, min_nota: flo
         return json.dumps({"erro": f"falha: {str(e)}"})
 
 instrucoes = "você é uma especialista em viagens, se chama clau e atua na agência clau a viajante. apresente-se apenas uma vez. use as informações do perfil do usuário para criar roteiros personalizados. converse de forma natural."
-model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=instrucoes, tools=[buscar_voos, buscar_hoteis])
+# Tente usar o 1.5-flash que é o mais compatível com diferentes regiões do Streamlit Cloud
+model_name = "gemini-1.5-flash" 
+model = genai.GenerativeModel(model_name=model_name, system_instruction=instrucoes, tools=[buscar_voos, buscar_hoteis])
 
 st.set_page_config(layout="wide", page_title="clau a viajante")
 st.title("✈️ clau a viajante - planejamento de roteiros")
@@ -153,12 +158,6 @@ lista_locais = carregar_locais()
 tab_chat, tab_busca, tab_aeroportos = st.tabs(["💬 chat e roteiro", "🔍 buscador completo", "📍 descobrir aeroportos"])
 
 with tab_chat:
-    col_vazia, col_btn = st.columns([4, 1])
-    with col_btn:
-        if st.button("🧹 limpar chat"):
-            st.session_state.chat = model.start_chat(enable_automatic_function_calling=True)
-            st.rerun()
-
     with st.expander("📝 perfil da viagem (preencha para guiar a clau)", expanded=True):
         with st.form("form_perfil"):
             col_a, col_b = st.columns(2)
@@ -199,8 +198,13 @@ with tab_chat:
     prompt = st.chat_input("fale com a clau...")
     if prompt:
         st.chat_message("user").write(prompt)
-        resposta = st.session_state.chat.send_message(prompt)
-        st.chat_message("assistant").write(resposta.text)
+        try:
+            resposta = st.session_state.chat.send_message(prompt)
+            st.chat_message("assistant").write(resposta.text)
+        except Exception as e:
+            st.error(f"Erro ao enviar mensagem: {e}")
+            if "404" in str(e) or "NotFound" in str(e):
+                st.info("💡 Dica: O erro 404 (NotFound) no Streamlit Cloud geralmente indica que o modelo selecionado não está disponível na região do servidor ou foi descontinuado. Tente mudar o modelo para 'gemini-1.5-flash' ou 'gemini-2.0-flash' no código.")
 
 with tab_busca:
     st.subheader("pesquisa unificada: voos e hotéis")
@@ -283,7 +287,7 @@ with tab_busca:
                 for v in voos_lista:
                     with st.container(border=True):
                         st.write(f"**{v['companhia']}** | voo: {v['voo']} | paradas: {v['paradas']}")
-                        st.write(f"r$ **{v['preco']:.2f}**")
+                        st.write(f"**r$ {v['preco']:.2f}**")
 
         with col_res_h:
             st.write(f"### 🏨 hospedagem (diária para {num_pessoas_busca} pessoas)")
@@ -297,7 +301,7 @@ with tab_busca:
                         if h['imagem']:
                             st.image(h['imagem'], use_container_width=True)
                         st.write(f"**{h['nome']}** | ⭐ {h['avaliacao']}")
-                        st.write(f"r$ **{h['preco']:.2f}** / noite")
+                        st.write(f"**r$ {h['preco']:.2f} / noite**")
                         
         if voos_lista and hoteis_lista:
             st.divider()
@@ -322,8 +326,8 @@ with tab_busca:
                 total_pacote = total_voo + total_hotel
                 preco_medio_pessoa = total_pacote / qtd_pessoas_pacote
                 
-                st.success(f"**resumo:** voos ({qtd_pessoas_pacote}x r$ {voo_escolhido['preco']:.2f} = r$ **{total_voo:.2f}**) + hotel ({noites} noites = r$ **{total_hotel:.2f}**)")
-                st.info(f"### 💰 valor total estimado: r$ **{total_pacote:.2f}** (r$ **{preco_medio_pessoa:.2f}** por pessoa)")
+                st.success(f"**resumo:** voos ({qtd_pessoas_pacote}x r$ {voo_escolhido['preco']:.2f} = **r$ {total_voo:.2f}**) + hotel ({noites} noites = **r$ {total_hotel:.2f}**)")
+                st.info(f"### 💰 valor total estimado: r$ {total_pacote:.2f} (**r$ {preco_medio_pessoa:.2f}** por pessoa)")
 
 with tab_aeroportos:
     st.subheader("descobrir aeroporto mais próximo")
@@ -336,6 +340,6 @@ with tab_aeroportos:
         if buscar_aero and cidade_alvo:
             with st.spinner("consultando a ia..."):
                 prompt_aero = f"quais os 3 aeroportos comerciais mais próximos de {cidade_alvo}? retorne apenas o nome do aeroporto, a distância aproximada e a sigla iata entre parênteses. seja direto e não enrole."
-                modelo_aero = genai.GenerativeModel("gemini-2.5-flash")
+                modelo_aero = genai.GenerativeModel("gemini-3.1-flash)
                 resp_aero = modelo_aero.generate_content(prompt_aero)
                 st.write(resp_aero.text)
