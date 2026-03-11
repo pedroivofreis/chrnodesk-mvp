@@ -147,7 +147,7 @@ def buscar_hoteis(destino_hotel: str, checkin: str, checkout: str, min_nota: flo
 
 instrucoes = "você é uma especialista em viagens, se chama clau e atua na agência clau a viajante. apresente-se apenas uma vez. use as informações do perfil do usuário para criar roteiros personalizados. converse de forma natural."
 # Tente usar o 1.5-flash que é o mais compatível com diferentes regiões do Streamlit Cloud
-model_name = "gemini-1.5-flash" 
+model_name = "gemini-2.5-flash" 
 model = genai.GenerativeModel(model_name=model_name, system_instruction=instrucoes, tools=[buscar_voos, buscar_hoteis])
 
 st.set_page_config(layout="wide", page_title="clau a viajante")
